@@ -82,10 +82,11 @@ python3 speed_detector.py --video videos/sample_traffic.mp4 --distance 15.0 --sp
 | `Q` or `ESC` | Quit session and display final summary report |
 | `S` | Save full-frame screenshot to `output/` |
 | `+` / `-` | Increase / Decrease playback speed |
-| `1` | Move Entry Line **UP** (10px) |
-| `2` | Move Entry Line **DOWN** (10px) |
-| `3` | Move Exit Line **UP** (10px) |
-| `4` | Move Exit Line **DOWN** (10px) |
+| `O` | Toggle Reference Line Orientation (Horizontal / Vertical) |
+| `1` | Move Entry Line **UP / LEFT** |
+| `2` | Move Entry Line **DOWN / RIGHT** |
+| `3` | Move Exit Line **UP / LEFT** |
+| `4` | Move Exit Line **DOWN / RIGHT** |
 
 ---
 

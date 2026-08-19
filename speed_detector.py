@@ -63,7 +63,7 @@ CLASS_COLORS = {
 # Default Virtual Line positions (as fraction of frame dimensions 0.0 - 1.0)
 LINE_1_POSITION = 0.35               # Entry line default (35% mark)
 LINE_2_POSITION = 0.65               # Exit line default (65% mark)
-DEFAULT_ORIENTATION = "vertical"     # Default orientation ("horizontal" or "vertical")
+DEFAULT_ORIENTATION = "horizontal"   # Default orientation ("horizontal" or "vertical")
 
 # Real-world distance between the two reference lines in METERS
 KNOWN_DISTANCE_METERS = 15.0
@@ -367,31 +367,41 @@ def process_video(args):
             line1_pos = int(frame_w * line1_ratio)
             line2_pos = int(frame_w * line2_ratio)
 
+        entry_line = min(line1_pos, line2_pos)
+        exit_line = max(line1_pos, line2_pos)
+
         # 3. Check line crossings & calculate speed
         in_zone_count = 0
         for vehicle_id, (cx, cy, x1, y1, x2, y2) in tracked_objects.items():
             # Get previous centroid coordinate
-            prev_pt = vehicle_trails[vehicle_id][-1] if len(vehicle_trails[vehicle_id]) > 0 else (cx, cy)
+            has_history = len(vehicle_trails[vehicle_id]) > 0
+            prev_pt = vehicle_trails[vehicle_id][-1] if has_history else (cx, cy)
             vehicle_trails[vehicle_id].append((cx, cy))
             
             curr_coord = cy if orientation == "horizontal" else cx
             prev_coord = prev_pt[1] if orientation == "horizontal" else prev_pt[0]
 
             # Count vehicles currently between Line 1 and Line 2
-            if min(line1_pos, line2_pos) <= curr_coord <= max(line1_pos, line2_pos):
+            if entry_line <= curr_coord <= exit_line:
                 in_zone_count += 1
 
-            # Check Line 1 crossing
-            if vehicle_id not in line1_cross_time:
-                if (min(prev_coord, curr_coord) <= line1_pos <= max(prev_coord, curr_coord)) or (abs(curr_coord - line1_pos) <= 25):
+            # Check boundary crossings (only if we have previous frame history)
+            if has_history:
+                # Forward motion (increasing coordinate: top->bottom or left->right)
+                if prev_coord <= entry_line < curr_coord and vehicle_id not in line1_cross_time:
                     line1_cross_time[vehicle_id] = current_video_time
                     crossed_line1.add(vehicle_id)
-
-            # Check Line 2 crossing
-            if vehicle_id not in line2_cross_time:
-                if (min(prev_coord, curr_coord) <= line2_pos <= max(prev_coord, curr_coord)) or (abs(curr_coord - line2_pos) <= 25):
+                elif prev_coord <= exit_line < curr_coord and vehicle_id not in line2_cross_time:
                     line2_cross_time[vehicle_id] = current_video_time
                     crossed_line2.add(vehicle_id)
+
+                # Reverse motion (decreasing coordinate: bottom->top or right->left)
+                elif curr_coord <= exit_line < prev_coord and vehicle_id not in line2_cross_time:
+                    line2_cross_time[vehicle_id] = current_video_time
+                    crossed_line2.add(vehicle_id)
+                elif curr_coord <= entry_line < prev_coord and vehicle_id not in line1_cross_time:
+                    line1_cross_time[vehicle_id] = current_video_time
+                    crossed_line1.add(vehicle_id)
 
             # Calculate Speed if vehicle crossed BOTH lines
             if vehicle_id in line1_cross_time and vehicle_id in line2_cross_time and vehicle_id not in vehicle_speeds:
@@ -447,7 +457,6 @@ def process_video(args):
         else:
             draw_dashed_line(display_frame, (line1_pos, 0), (line1_pos, frame_h), LINE_COLOR_1, thickness=2)
             draw_label(display_frame, f"LINE 1 (ENTRY) - {int(line1_ratio * 100)}%", line1_pos + 5, 260, LINE_COLOR_1, (0, 0, 0))
-
             draw_dashed_line(display_frame, (line2_pos, 0), (line2_pos, frame_h), LINE_COLOR_2, thickness=2)
             draw_label(display_frame, f"LINE 2 (EXIT) - {int(line2_ratio * 100)}%", line2_pos + 5, 300, LINE_COLOR_2, (255, 255, 255))
 
@@ -461,7 +470,7 @@ def process_video(args):
                 speed_str = f"{spd:.1f} km/h"
                 if spd > args.speed_limit:
                     speed_str += " ⚠️"
-            elif vehicle_id in crossed_line1:
+            elif vehicle_id in crossed_line1 or vehicle_id in crossed_line2:
                 box_color = (0, 255, 255)
                 speed_str = "Measuring..."
             else:
@@ -576,7 +585,7 @@ def main():
     parser = argparse.ArgumentParser(description="Multi-Vehicle Speed Detection System (YOLOv8 + Centroid Tracker)")
     parser.add_argument("--video", required=True, help="Path to input traffic video file")
     parser.add_argument("--output", default=None, help="Path to save output video (optional)")
-    parser.add_argument("--orientation", choices=["horizontal", "vertical"], default="vertical", help="Reference line orientation: 'horizontal' or 'vertical' (default: vertical)")
+    parser.add_argument("--orientation", choices=["horizontal", "vertical"], default="horizontal", help="Reference line orientation: 'horizontal' or 'vertical' (default: horizontal)")
     parser.add_argument("--show", action="store_true", default=True, help="Show live preview window (default: True)")
     parser.add_argument("--no-show", action="store_false", dest="show", help="Disable live preview window")
     parser.add_argument("--distance", type=float, default=KNOWN_DISTANCE_METERS, help=f"Real distance between lines in meters (default: {KNOWN_DISTANCE_METERS})")

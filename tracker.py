@@ -115,21 +115,22 @@ class CentroidTracker:
                 for j, (ix, iy) in enumerate(input_centroids):
                     D[i, j] = math.hypot(ox - ix, oy - iy)
 
-            # Find matching using greedy approach (smallest distance pairs first)
-            rows = D.min(axis=1).argsort()
-            cols = D.argmin(axis=1)[rows]
-
+            # Find matching using global greedy approach (smallest distance pairs across whole matrix)
             used_rows = set()
             used_cols = set()
+            flat_indices = np.argsort(D, axis=None)
 
-            for (row, col) in zip(rows, cols):
-                # Skip if we already examined this row or column
+            for idx in flat_indices:
+                row = int(idx // D.shape[1])
+                col = int(idx % D.shape[1])
+
+                # Skip if this object or detection has already been matched
                 if row in used_rows or col in used_cols:
                     continue
 
-                # Skip matching if distance exceeds max allowed distance
+                # Stop if distance exceeds max allowed distance
                 if D[row, col] > self.max_distance:
-                    continue
+                    break
 
                 # Match found: update centroid, bounding box, and reset disappeared count
                 object_id = object_ids[row]
