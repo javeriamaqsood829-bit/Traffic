@@ -183,3 +183,54 @@ Execution ke dauran live keyboard shortcuts se system ko interactively control k
 | `S` | Full annotated frame screenshot save karta hai (`output/screenshot_frame_*.jpg`) |
 | `+` / `-` | Playback speed increase / decrease |
 | `Q` or `ESC` | Session exit karke final summary aur histogram display karna |
+
+---
+
+## 5. V2 Multi-Technology Suite (The 6 Next-Gen Engineering Upgrades)
+
+Project Exhibition V2 me humne system ko research-grade and production-ready banate hue 6 critical technologies implement ki hain:
+
+```mermaid
+flowchart LR
+    A["CCTV Video Stream"] --> B["Night Vision / CLAHE (enhancer.py)"]
+    B --> C["YOLOv8 + Regional Classifier (classifier.py)"]
+    C --> D["ByteTrack: Kalman Filter + IoU (tracker.py)"]
+    D --> E["4-Point IPM Homography (homography.py)"]
+    E --> F{"Speed > Limit?"}
+    F -- "Yes" --> G["ALPR & E-Challan Generator (alpr.py)"]
+    F -- "Yes & No" --> H["SQLite WAL Database (database.py)"]
+    H --> I["4-Panel Session Analytics (Matplotlib)"]
+```
+
+### Module V2.1: Automatic License Plate Recognition (ALPR) & E-Challan Generator (`alpr.py`)
+* **Technology:** Morphological Black-Hat + Sobel-X Edge Filtering + EasyOCR OCR Engine.
+* **Mechanism:**
+  1. Overspeeding car detect hote hi uska high-resolution crop isolate hota hai.
+  2. Lower 55% region par morphological filtering se license plate candidate localize hota hai (aspect ratio 2.0 – 5.5).
+  3. EasyOCR alphanumeric characters extract karke plate text standardize karta hai.
+  4. System ek official **Traffic Enforcement Citation Card (E-Challan)** render karta hai with plate number, speed excess margin, timestamp, aur evidence crop (`output/overspeeding/citation_*.jpg`).
+
+### Module V2.2: 4-Point Homography & Inverse Perspective Mapping (`homography.py`)
+* **Technology:** 2D Projective Geometry & Perspective Transformation Matrix ($H_{3 \times 3}$).
+* **Problem Solved:** Oblique camera angle ki wajah se door ke vehicles chote dikhte hain aur foreshortening ki wajah se pixel-based speed drift karti hai.
+* **Solution:** Road plane ke 4 reference points se homography matrix $H$ compute karke pixel coordinates $(u, v)$ ko real-world ground meters $(X, Y)$ me map kiya jata hai. Speed Euclidean metric space me $\frac{\sqrt{\Delta X^2 + \Delta Y^2}}{\Delta t} \times 3.6$ se calculate hoti hai. Live HUD me top-down **Bird's-Eye View IPM Radar** inset bhi display hota hai.
+
+### Module V2.3: Low-Light CLAHE & Headlight Glare Suppression (`enhancer.py`)
+* **Technology:** LAB Color Space CLAHE (Contrast Limited Adaptive Histogram Equalization) + Specular Bloom Attenuation.
+* **Problem Solved:** Night surveillance me dark vehicles disappear ho jate hain aur headlights ke excessive glare se bounding box balloon ho jati hai.
+* **Solution:** Frame luminance ($V$-channel) monitor karke low light auto-detect hoti hai. LAB color space me Luminance channel par CLAHE apply hoti hai, aur high-intensity glare regions ($V > 235, S < 60$) par smooth tone-mapping filter bloom ko suppress karta hai.
+
+### Module V2.4: ByteTrack Multi-Object Tracker (`tracker.py`)
+* **Technology:** 8-State Kalman Filter ($[cx, cy, s, r, \dot{cx}, \dot{cy}, \dot{s}, \dot{r}]$) + Two-Stage IoU Association with Hungarian Algorithm (`scipy.optimize.linear_sum_assignment`).
+* **Problem Solved:** Simple centroid tracker close crossovers ya temporary occlusion me vehicle IDs switch kar deta tha.
+* **Solution:** Constant velocity Kalman motion model occluded vehicles ko predict karta rehta hai. Two-stage matching high-confidence aur low-confidence detections dono ko match karke ID switches eliminate karti hai.
+
+### Module V2.5: Regional Vehicle Classifier & Spatial Lane Assignment (`classifier.py`)
+* **Technology:** Geometric Aspect Ratio Profiling + Hue-Saturation Color Masking.
+* **Capability:** Standard COCO vehicle classes ke alawa Indian traffic ke liye **Auto-Rickshaw (Three-Wheeler)** heuristics (compact squarish ratio $w/h \in [0.62, 1.05]$ aur yellow/green color dominance) integrate kiye gaye hain. Saath hi vehicles ko **Lane 1 (Left)**, **Lane 2 (Center)**, **Lane 3 (Right)** me classify kiya jata hai.
+
+### Module V2.6: Decoupled SQLite State Persistence & 4-Panel Analytics (`database.py`)
+* **Technology:** SQLite 3 with Write-Ahead Logging (WAL) + Matplotlib Multi-Panel Reporting.
+* **Persistence:** Application state aur audit storage decoupled hain. Saari violations and passage streams `logs/violations.db` me persist hoti hain. Dual-sync se tabular CSV (`logs/speed_log_YYYY-MM-DD.csv`) aur REST-ready JSON summary (`logs/session_summary.json`) generate hote hain.
+* **Session Analytics:** Program completion par comprehensive 4-panel visual report (`output/session_analytics.png`) generate hota hai jisme Speed Distribution with Limit Threshold, Vehicle Classification Breakdown, Speed Compliance Donut Chart, aur Sequential Speed Timeline shamil hain.
+

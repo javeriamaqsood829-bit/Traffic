@@ -1,56 +1,82 @@
-# Multi-Vehicle Speed Detection System
+# Multi-Vehicle Speed Detection System (V2 Production Suite)
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![YOLOv8](https://img.shields.io/badge/YOLO-v8n-green.svg)](https://github.com/ultralytics/ultralytics)
-[![OpenCV](https://img.shields.io/badge/OpenCV-4.x-red.svg)](https://opencv.org/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-5.x-red.svg)](https://opencv.org/)
+[![ByteTrack](https://img.shields.io/badge/Tracker-ByteTrack%20(Kalman%2BIoU)-orange.svg)](tracker.py)
+[![ALPR](https://img.shields.io/badge/ALPR-EasyOCR-purple.svg)](alpr.py)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A complete, standalone **Multi-Vehicle Speed Detection System** in Python using **YOLOv8** object detection and a custom **Centroid Tracker** built from scratch.
-
-This system detects multiple vehicles (Cars, Motorcycles, Buses, Trucks) in real-time from fixed CCTV traffic video streams, tracks them across frames with persistent IDs, measures the precise frame time taken to travel between two virtual reference lines, and calculates speed in **km/h**.
+A complete, production-grade **AI Multi-Vehicle Speed Detection & Traffic Enforcement System** in Python combining **YOLOv8**, **ByteTrack (Kalman Filter + IoU)**, **Inverse Perspective Mapping (IPM Homography)**, **ALPR Automatic License Plate Recognition**, **Night Vision Enhancement**, and **SQLite State Persistence**.
 
 ---
 
-## 🌟 Key Features
+## 🌟 The 6 Next-Gen Technologies Implemented
 
-- **YOLOv8 Object Detection**: Pre-trained model (`yolov8n.pt`) automatically detects vehicle classes (`Car`, `Motorcycle`, `Bus`, `Truck`).
-- **Custom Centroid Tracker**: Built from scratch using Euclidean distance matching without external tracking libraries.
-- **Two-Line Virtual Speed Trap**:
-  - Entry Line (Yellow) records start time.
-  - Exit Line (Red) records stop time.
-  - Speed formula: $\text{Speed (km/h)} = \frac{\text{Distance (m)}}{\Delta t \text{ (s)}} \times 3.6$.
-- **Real-Time HUD Overlay**:
-  - Semi-transparent stats dashboard (vehicles tracked, in zone, average/max speed, FPS).
-  - Vehicle classification breakdown bar.
-  - Motion trail tails behind tracked vehicles.
-  - Over-speed alert highlighting (Red bounding box & ⚠️ indicator).
-- **Automated Overspeed Snapshot**: Saves high-speed vehicle crops directly to `output/overspeeding/`.
-- **CSV Speed Logging**: Automatic event logging with timestamps to `logs/speed_log_YYYY-MM-DD.csv`.
-- **Speed Histogram Generator**: Saves a matplotlib speed distribution graph (`output/speed_histogram.png`) upon completion.
-- **Exhibition Live Controls**: Adjust line positions live during playback using keys `1`, `2`, `3`, `4`.
+### 1. 📋 Automatic License Plate Recognition (ALPR) & E-Challan Generator (`alpr.py`)
+- Automatically isolates violation vehicle crops and isolates plate candidate regions using morphological black-hat and Sobel gradient filtering.
+- Performs alphanumeric character extraction using **EasyOCR** with regex validation for national vehicle registration syntaxes.
+- Generates official, high-resolution **Traffic Violation Citation (E-Challan)** evidence cards stamped with detected plate, violation speed, excess margin, timestamp, and camera metadata saved to `output/overspeeding/`.
+
+### 2. 📐 4-Point Homography & Inverse Perspective Mapping (`homography.py`)
+- Resolves camera pitch and oblique angle distortion by computing the $3 \times 3$ Homography transform matrix $H$ between image plane $(u, v)$ and physical ground coordinates $(X, Y)$ in real-world **meters**.
+- Computes true Euclidean ground speed: $\text{Speed} = \frac{\sqrt{\Delta X^2 + \Delta Y^2}}{\Delta t} \times 3.6$ km/h.
+- Generates a live, top-down **Bird's-Eye View IPM Radar** inset on the HUD displaying physical vehicle positions.
+
+### 3. 🌙 Night Vision / Low-Light CLAHE & Headlight Glare Suppression (`enhancer.py`)
+- Auto-detects night or low-contrast footage via frame luminance analysis ($V$-channel).
+- Applies **CLAHE** (Contrast Limited Adaptive Histogram Equalization) on the luminance channel in LAB color space to recover dark vehicle silhouettes.
+- Employs **Headlight Glare Suppression** to soften specular headlight blooms and prevent bounding box ballooning or centroid drift.
+
+### 4. 🎯 ByteTrack Multi-Object Tracker (`tracker.py`)
+- State-of-the-art tracker using **Kalman Filtering** (8-state vector: $[cx, cy, s, r, \dot{cx}, \dot{cy}, \dot{s}, \dot{r}]$) with constant-velocity prediction across missing frames.
+- **Two-Stage IoU Association** with the Hungarian Algorithm (`scipy.optimize.linear_sum_assignment`) to seamlessly match both high- and low-confidence detections, eliminating ID switches and occlusion dropouts.
+- Backwards-compatible fallback to pure-Python `CentroidTracker`.
+
+### 5. 🛺 Regional Vehicle Classifier & Multi-Lane Assignment (`classifier.py`)
+- Extends standard COCO classes (`Car`, `Motorcycle`, `Bus`, `Truck`) with heuristic detection for regional vehicles such as **Auto-Rickshaws (Three-Wheelers)** based on aspect ratio and livery color profiling.
+- Distinguishes **Light Commercial Vehicles (LCV / Vans)** from Heavy Trucks.
+- Computes real-time **Spatial Lane Assignment** (e.g. Lane 1 Left, Lane 2 Center, Lane 3 Right).
+
+### 6. 🗄️ Decoupled SQLite State Persistence & 4-Panel Analytics (`database.py`)
+- Decouples ephemeral tracking state from immutable audit persistence using SQLite (`logs/violations.db`) with WAL concurrency.
+- Dual-sync exports: clean CSV logs (`logs/speed_log_YYYY-MM-DD.csv`) and REST-ready JSON summaries (`logs/session_summary.json`).
+- Automatically generates a comprehensive 4-panel visual report (`output/session_analytics.png`):
+  1. Speed Distribution Histogram with Speed Limit and Mean markers.
+  2. Vehicle Classification Breakdown Bar Chart.
+  3. Speed Compliance Donut Chart.
+  4. Sequential Passage Speed Timeline.
 
 ---
 
-## 📁 Project Structure
+## 📁 Project Architecture
 
 ```
 Project-Exhibition-1/
-├── speed_detector.py          # Main application & processing pipeline
-├── tracker.py                 # Pure-Python CentroidTracker class
+├── speed_detector.py          # Unified pipeline runner & HUD orchestrator
+├── tracker.py                 # ByteTrack (Kalman + IoU) & CentroidTracker
+├── alpr.py                    # License Plate Recognition & E-Challan citations
+├── homography.py              # 4-point IPM perspective calibration & bird's-eye radar
+├── enhancer.py                # Night CLAHE enhancement & headlight glare suppression
+├── classifier.py              # Regional auto-rickshaw & lane assignment engine
+├── database.py                # SQLite persistence, CSV/JSON export & analytics charts
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # System documentation
-├── PROJECT_REPORT.md          # Technical report & system architecture
-├── LICENSE                    # MIT Open-Source License
-├── videos/                    # Input traffic sample videos
-├── output/                    # Generated output videos, screenshots & charts
-│   ├── overspeeding/          # Saved crops of speeding vehicles
+├── PROJECT_REPORT.md          # In-depth technical architecture report
+├── videos/                    # Sample traffic surveillance footage
+├── output/                    # Annotated videos, screenshots & charts
+│   ├── overspeeding/          # Generated citation cards and vehicle evidence
+│   ├── session_analytics.png  # 4-panel session analytics report
 │   └── speed_histogram.png    # Session speed distribution chart
-└── logs/                      # CSV speed log entries
+└── logs/                      # SQLite DB, CSV logs & JSON summaries
+    ├── violations.db          # SQLite persistent violation database
+    ├── speed_log_YYYY-MM-DD.csv # Tabular passage log
+    └── session_summary.json   # Machine-readable summary export
 ```
 
 ---
 
-## ⚡ Installation & Setup
+## ⚡ Installation & Quick Start
 
 1. **Clone the Repository**:
    ```bash
@@ -58,64 +84,55 @@ Project-Exhibition-1/
    cd Project-Exhibition-1
    ```
 
-2. **Create and Activate a Virtual Environment** (Optional but recommended):
+2. **Set up Virtual Environment**:
    ```bash
    python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
    ```
 
 3. **Install Dependencies**:
    ```bash
    python3 -m pip install -r requirements.txt
    ```
-   *(Note: `yolov8n.pt` auto-downloads on first run (~6MB))*
 
----
+4. **Run the System**:
+   ```bash
+   # Run with ByteTrack + ALPR E-Challans + SQLite DB
+   python3 speed_detector.py --video videos/sample_traffic.mp4
 
-## 🚀 How to Run
+   # Run with 4-Point IPM Homography Ground Calibration
+   python3 speed_detector.py --video videos/sample_traffic.mp4 --homography
 
-### Basic Usage:
-Run the detector with the included sample video:
-```bash
-python3 speed_detector.py --video videos/sample_traffic.mp4
-```
+   # Run with Night Mode CLAHE & Glare Suppression
+   python3 speed_detector.py --video videos/sample_traffic.mp4 --night-mode
 
-### Custom Settings:
-```bash
-python3 speed_detector.py --video videos/sample_traffic.mp4 --distance 15.0 --speed-limit 50 --output output/result_demo.mp4
-```
-
-### CLI Arguments:
-- `--video`: Path to input video file (required)
-- `--orientation`: Line orientation: `horizontal` (default) or `vertical`
-- `--distance`: Real-world distance between reference lines in meters (default: `15.0`)
-- `--speed-limit`: Speed limit threshold for violations in km/h (default: `60.0`)
-- `--conf`: YOLO detection confidence threshold (default: `0.35`)
-- `--output`: Path to save annotated output video
+   # Run headlessly (e.g. on server / cloud pipeline)
+   python3 speed_detector.py --video videos/sample_traffic.mp4 --no-show
+   ```
 
 ---
 
 ## ⌨️ Live Keyboard Controls
 
-| Key | Action |
+| Key | Function |
 |---|---|
-| `SPACE` | Pause / Resume playback |
-| `Q` or `ESC` | Quit session and display final summary report |
+| `SPACE` | Pause / Resume video playback |
+| `Q` or `ESC` | Quit session and export final analytics report |
+| `T` | Toggle Tracker Core (`ByteTrack (Kalman+IoU)` $\leftrightarrow$ `Centroid`) |
+| `H` | Toggle 4-Point Homography Ground Calibration Zone & IPM Radar |
+| `N` | Toggle Night Vision / Low-Light CLAHE Enhancement & Glare Filter |
+| `O` | Toggle Reference Line Orientation (`Horizontal` $\leftrightarrow$ `Vertical`) |
 | `S` | Save full-frame screenshot to `output/` |
-| `+` / `-` | Increase / Decrease playback speed |
-| `O` | Toggle Reference Line Orientation (Horizontal / Vertical) |
-| `1` | Move Entry Line **UP / LEFT** |
-| `2` | Move Entry Line **DOWN / RIGHT** |
-| `3` | Move Exit Line **UP / LEFT** |
-| `4` | Move Exit Line **DOWN / RIGHT** |
+| `1` / `2` | Move Entry Line UP / DOWN (or LEFT / RIGHT) |
+| `3` / `4` | Move Exit Line UP / DOWN (or LEFT / RIGHT) |
 
 ---
 
-## 📐 Calibration Guide
+## 📊 Sample Output & Audit Trail
 
-1. **Identify Road References**: Find two distinct road points (e.g. lane divider segments or poles) visible in your video. Standard highway dashed lane markings are typically 3.0m dash with 4.5–9m gap.
-2. **Estimate Distance**: Count how many markings span between Line 1 and Line 2, and pass `--distance <meters>`.
-3. **Live Fine-Tuning**: Use keys `1/2` and `3/4` while the video plays to position the virtual lines perpendicular to traffic flow.
+- **Evidence Citation Cards**: Saved automatically to `output/overspeeding/citation_id<ID>_<SPEED>kmh_<PLATE>.jpg`
+- **SQLite Database**: Queryable anytime using `sqlite3 logs/violations.db "SELECT * FROM violations;"`
+- **Visual Analytics**: Multi-panel report saved to `output/session_analytics.png`
 
 ---
 
